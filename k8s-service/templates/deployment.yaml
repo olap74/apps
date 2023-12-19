@@ -1,0 +1,115 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "k8s-service.fullname" . }}
+  labels:
+    {{- include "k8s-service.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "k8s-service.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "k8s-service.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "k8s-service.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          envFrom:
+          - configMapRef:
+              name: backend-config
+          {{ if ne .Values.configMap.name "" }}
+          - configMapRef:
+              name: {{ .Values.configMap.name }}
+          {{ end }}
+          env:
+          - name: HOSTING_PLATFORM
+            value: "AKS"
+          {{- if eq .Values.secretsProvider.type "azure" }}
+          {{- if .Values.secrets }}
+          {{ range .Values.secrets }}
+          - name: {{ .env }}
+            valueFrom:
+              secretKeyRef:
+                name: {{ include "k8s-service.fullname" $ }}
+                key: {{ .name }}  
+          {{ end }}        
+          {{ end }}
+          {{ end }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.livenessProbe.path }}
+              port: http
+            timeoutSeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.readinessProbe.path }}
+              port: http
+            timeoutSeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+          {{- if eq .Values.secretsProvider.type "azure" }}
+          {{- if .Values.secrets }}
+          - name: azure-secret-store
+            mountPath: "/mnt/secrets-store"
+            readOnly: true
+          {{- end }}
+          {{- end }}
+          {{- if ne .Values.configMap.mountPath "" }}
+          - name: {{ .Values.configMap.name }}
+            mountPath: {{ .Values.configMap.mountPath }}
+            readOnly: true
+          {{- end }}
+      volumes:
+      {{- if eq .Values.secretsProvider.type "azure" }}
+      {{- if .Values.secrets }}
+      - name: azure-secret-store
+        csi:
+          driver: secrets-store.csi.k8s.io
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: {{ include "k8s-service.fullname" . }}
+      {{- end }}
+      {{- end }}
+      {{- if ne .Values.configMap.mountPath "" }}
+      - name: {{ .Values.configMap.name }}
+        configMap:
+          name: {{ .Values.configMap.name }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

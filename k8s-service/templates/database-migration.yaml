@@ -1,0 +1,81 @@
+{{- if .Values.databaseMigration.enabled }}
+---
+# Job to run database migrations. Inspired by: https://atlasgo.io/guides/deploying/helm. 
+# Is is using the same secrets and configs as the deployment object
+apiVersion: batch/v1
+kind: Job
+metadata:
+  # job name should include a unix timestamp to make sure it's unique
+  name: "{{ .Release.Name }}-migrate-{{ now | unixEpoch }}"
+  labels:
+    helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  template:
+    metadata:
+      name: "{{ .Release.Name }}-create-tables"
+      labels:
+        app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+        app.kubernetes.io/instance: {{ .Release.Name | quote }}
+        helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    spec:
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      restartPolicy: Never
+      {{ if .Values.imagePullSecrets }}
+      imagePullSecrets:
+      {{- range $i := .Values.imagePullSecrets }}
+      - name: {{ $i }}
+      {{- end }}
+      {{- end }}
+      containers:
+        - name: database-migration
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          args:
+            - './run-db-migrations.sh'
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          volumeMounts:
+          {{- if eq .Values.secretsProvider.type "azure" }}
+          {{- if .Values.secrets }}
+          - name: azure-secret-store
+            mountPath: "/mnt/secrets-store"
+            readOnly: true
+          {{- end }}
+          {{- end }}
+          envFrom:
+          - configMapRef:
+              name: backend-config
+          {{ if ne .Values.configMap.name "" }}
+          - configMapRef:
+              name: {{ .Values.configMap.name }}
+          {{ end }}
+          env:
+          - name: HOSTING_PLATFORM
+            value: "AKS"
+          {{- if eq .Values.secretsProvider.type "azure" }}
+          {{- if .Values.secrets }}
+          {{ range .Values.secrets }}
+          - name: {{ .env }}
+            valueFrom:
+              secretKeyRef:
+                name: {{ include "k8s-service.fullname" $ }}-pre-install
+                key: {{ .name }}  
+          {{ end }}        
+          {{ end }}
+          {{ end }}
+      volumes:
+      {{- if eq .Values.secretsProvider.type "azure" }}
+      {{- if .Values.secrets }}
+      - name: azure-secret-store
+        csi:
+          driver: secrets-store.csi.k8s.io
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: {{ include "k8s-service.fullname" . }}-pre-install
+      {{- end }}
+      {{- end }}
+{{- end }}
