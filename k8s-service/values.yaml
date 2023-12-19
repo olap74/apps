@@ -59,13 +59,11 @@ ingress:
     # (https://stackoverflow.com/questions/51744536/cors-rules-nginx-ingress-rules)
     nginx.ingress.kubernetes.io/enable-cors: "true"
     nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
-    nginx.ingress.kubernetes.io/cors-allow-headers: "org-alliedpilots-pilotId,org-alliedpilots-timeZone,timezone,Authorization,DNT,X-CustomHeader,X-LANG,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,X-Api-Key,X-Device-Id,Access-Control-Allow-Origin"
     # Allow all hosts: 
     nginx.ingress.kubernetes.io/configuration-snippet: |
       more_set_headers "Access-Control-Allow-Origin: $http_origin";
     # Allow only specific hosts: 
     # nginx.ingress.kubernetes.io/configuration-snippet: |
-    #   more_set_headers "Access-Control-Allow-Origin: http://localhost:4200, https://sentinel.integ.alliedpilots.org";
 
     ## File upload size limit settings 
     nginx.ingress.kubernetes.io/proxy-body-size: 10m
@@ -105,10 +103,10 @@ affinity: {}
 
 secretsProvider:
   type: azure
-  parameters:
-    keyvaultName: integ-sentinel-kv
-    tenantId: 06d5d343-a525-46b9-b0f3-9074c9884b50
-    userAssignedIdentityID: 28f7c354-56ca-4103-bd19-b341786e1d5d
+  # parameters:
+  #   keyvaultName: keyvault
+  #   tenantId: 01234567-90ab-cdef-fedc-1234567890ab
+  #   userAssignedIdentityID: 01234567-90ab-cdef-fedc-1234567890ab
 secrets: {}
 # - name: test1
 #   env: TEST1
