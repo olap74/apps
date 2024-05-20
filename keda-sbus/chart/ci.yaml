@@ -1,0 +1,19 @@
+trigger:
+  batch: true
+  paths:
+    include:
+    - keda/*
+  branches:
+    include:
+    - master
+
+resources:
+  repositories:
+  - repository: pipelines
+    type: git
+    name: APA.Pipelines
+
+stages:
+- template: templates/helm-chart/ci.yaml@pipelines
+  parameters:
+    chartName: keda
