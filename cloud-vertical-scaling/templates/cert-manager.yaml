@@ -1,0 +1,26 @@
+{{- if .Values.certManagerCert.create }}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: vpa-tls
+  namespace: kube-system
+spec:
+  secretName: vpa-tls-secret
+  dnsNames:
+  - vpa-webhook
+  - vpa-webhook.kube-system.svc
+  - vpa_webhook_ca
+  issuerRef:
+    name: default
+    kind: ClusterIssuer
+  duration: 4320h0m0s # 180d
+  renewBefore: 720h0m0s # 30d
+  privateKey:
+    algorithm: RSA
+    rotationPolicy: Never
+    size: 2048
+  subject:
+    organizations:
+      - vpa_webhook_ca
+{{- end }}

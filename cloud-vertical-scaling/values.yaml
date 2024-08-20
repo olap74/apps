@@ -1,0 +1,34 @@
+rbac:
+  create: true
+namespace: kube-system
+certManagerCert:
+  create: true
+MetricsServerVPA:
+  create: true
+VPACRD:
+  create: true
+
+vpa:
+  metrics-server:
+    enabled: true
+  fullnameOverride: vpa
+  priorityClassName: system-node-critical
+  rbac:
+    create: false
+  recommender:
+    annotations:
+      component: vpa
+  updater:
+    annotations:
+      component: vpa
+  admissionController:
+    annotations:
+      component: vpa
+    extraArgs:
+      client-ca-file: /etc/tls-certs/ca.crt
+      tls-cert-file: /etc/tls-certs/tls.crt
+      tls-private-key: /etc/tls-certs/tls.key
+    generateCertificate: false
+    mutatingWebhookConfiguration:
+      annotations:
+        cert-manager.io/inject-ca-from: kube-system/vpa-tls-secret

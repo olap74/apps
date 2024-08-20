@@ -1,0 +1,13 @@
+apiVersion: v2
+description: A Helm chart for resources required for VPA
+name: vpa-resources
+type: application
+version: 0.0.1
+
+dependencies:
+- name: metrics-server
+  version: 3.11.0
+  repository: https://kubernetes-sigs.github.io/metrics-server
+- name: vpa
+  version: 4.5.0
+  repository: https://charts.fairwinds.com/stable
